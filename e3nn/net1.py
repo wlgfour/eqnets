@@ -160,7 +160,10 @@ def main2(
             metrics['Out/range'].append(out.max() - out.min())
             metrics['Out/var'].append(out.var())
             if i % save_every == 0 and save_dir != '' and save_every != 0:
-                torch.save(net.state_dict(), os.path.join(save_dir, f'{epoch}:{i}'))
+                sdir = f'{name}-{epoch}:{i}'
+                if not os.path.isdir(sdir):
+                    os.mkdir(f'{name}-{epoch}:{i}')
+                torch.save(net.state_dict(), os.path.join(save_dir, sdir))
                 if tbwriter is not None:
                     tbwriter.add_hparams({'lr': lr, 'lmax': lmax, 'rmax': rmax, 'layers': layers, 'epochs': epoch, 'steps': i},
                              {'Loss': 0., 'Avg_Neighbors': 0., 'Out/var': 0.},
