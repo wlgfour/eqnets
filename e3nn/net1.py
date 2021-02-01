@@ -140,10 +140,10 @@ def main2(
             feature = batch['features'][0]
             labels = batch['drmsd'][0]
             lengths = batch['length'][0]
-            for tens in [coords, feature, labels, lengths]:
+            nbrs = DataNeighbors(feature, coords, rmax)
+            for tens in [coords, feature, labels, lengths, nbrs]:
                 tens.to(device)
             
-            nbrs = DataNeighbors(feature, coords, rmax)
             out = net(nbrs)
             if i == 1 and tbwriter != None:
                 # tbwriter.add_graph(net, [nbrs.x, nbrs.edge_index, nbrs.edge_attr])
@@ -165,9 +165,10 @@ def main2(
                     os.mkdir(f'{name}-{epoch}:{i}')
                 torch.save(net.state_dict(), os.path.join(save_dir, sdir))
                 if tbwriter is not None:
-                    tbwriter.add_hparams({'lr': lr, 'lmax': lmax, 'rmax': rmax, 'layers': layers, 'epochs': epoch, 'steps': i},
-                             {'Loss': 0., 'Avg_Neighbors': 0., 'Out/var': 0.},
-                            )
+                    pass
+                    # tbwriter.add_hparams({'lr': lr, 'lmax': lmax, 'rmax': rmax, 'layers': layers, 'epochs': epoch, 'steps': i},
+                    #          {'Loss': 0., 'Avg_Neighbors': 0., 'Out/var': 0.},
+                    #         )
             if i % tbinterval == 0:
                 if tbwriter is None:
                     print(f"epoch:step={epoch}:{i} loss={loss:.2f}")
