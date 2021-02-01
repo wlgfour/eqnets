@@ -5,7 +5,7 @@ import torch
 import numpy as np
 import pandas as pd
 import os
-from typing import Dict, List, Union
+from typing import Any, Dict, List, Tuple, Union
 
 DSSP_CODES = ['H', 'G', 'I', 'E', 'O', 'S', 'B', 'T', '-', 'L']
 AAs = ['A', 'R', 'N', 'D', 'C', 'Q', 'E', 'G', 'H', 'I', 'L', 'K', 'M', 'F', 'P', 'S', 'T', 'W', 'Y', 'V', 'B', 'Z']
@@ -23,6 +23,7 @@ class ProteinLoader(Dataset):
         directory (str):
         representation (str='Euclidean'):
 
+    >>> 
     """
     
     def __init__(self, dir: str, representation: str='Euclidean', max_length: int=-1):
@@ -40,11 +41,18 @@ class ProteinLoader(Dataset):
     def __len__(self):
         return len(self.labels)
 
-    def __getitem__(self, i: int):
+    def __getitem__(self, i: Union[int, str]):
         if torch.is_tensor(i):
             i = i.tolist()
         
-        name = self.labels.iloc[i, 0]
+        if isinstance(i, int):
+            name = self.labels.iloc[i, 0]
+        elif isinstance(i, str):
+            name = i
+            i = self.labels[self.labels == i].index[0]
+        else:
+            raise TypeError(f'Type ({type(i)}) not supported by ProteinLoader.')
+
         dpath = os.path.join(self.dir, self.rep, f'{name}.npy')
         fpath = os.path.join(self.dir, 'Features', f'{int(name[1:name.index("_")])}.csv')
         coords = np.load(dpath)
@@ -58,6 +66,12 @@ class ProteinLoader(Dataset):
             coords = coords[:self.max_length]
         drmsd = self.labels.iloc[i, 1]
         return {'name': name, 'coords': torch.from_numpy(coords), 'drmsd': torch.tensor(drmsd), 'features': features}
+
+    def __contains__(self, key: Any):
+        if isinstance(key, str):
+            return (self.labels['protein.iteration'] == key).any()
+        else:
+            raise TypeError(f'Type ({type(i)}) not supported by ProteinLoader.')
         
 def _collate(batch: Dict[str, Union[str, Tensor]]) -> List[Union[Tensor, List[str]]]:
     ret = defaultdict(list)
@@ -92,7 +106,7 @@ def mask_by_len(inputs: Tensor, lens: Tensor) -> Tensor:
     masks = torch.arange(ml)[None, :] < lens[:, None]
     return inputs * masks[:, :, None]
 
-def get_data_loader(dir: str, representation: str='Euclidean', batch_size: int=1, max_length: int=100) -> DataLoader:
+def get_data_loader(dir: str, representation: str='Euclidean', batch_size: int=1, max_length: int=100) -> Tuple[Dataset, DataLoader]:
     """
     Description of get_data_loader
 
@@ -105,10 +119,10 @@ def get_data_loader(dir: str, representation: str='Euclidean', batch_size: int=1
 
     """
     loader = ProteinLoader(dir=dir, representation=representation, max_length=max_length)
-    return DataLoader(loader, batch_size=batch_size, shuffle=True, collate_fn=_collate)
+    return loader, DataLoader(loader, batch_size=batch_size, shuffle=True, collate_fn=_collate)
 
 if __name__ == '__main__':
-    d = '/home/wlg/development/HMS/protein_geometry/data/representations/rgn'
-    data_loader = get_data_loader(d)
+    d = '/home/wlg/development/HMS/protein_geometry/data/representations/150_1500'
+    dataset, data_loader = get_data_loader(d)
     for batch in data_loader:
         pass
