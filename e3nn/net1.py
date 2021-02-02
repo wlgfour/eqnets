@@ -72,7 +72,7 @@ def main(
         device = f'cuda:{gpu}'
     device = torch.device(device)
 
-    dataset, data_loader = get_data_loader(data_path, batch_size=1, max_length=-1)
+    dataset, data_loader = get_data_loader(data_path, batch_size=batch_size, max_length=-1)
 
     Rs_in = [(N_FEATURES, 0)]
     Rs_hidden = [(16, 0), (16, 1), (16, 2)]
@@ -93,78 +93,82 @@ def main(
     }
     while True:
         epoch += 1
-        for sample in data_loader:
-            global_step += 1
-            coords = sample['coords'][0]
-            feature = sample['features'][0]
-            labels = sample['drmsd'][0]
-            # lengths = sample['length'][0]
-            nbrs = DataNeighbors(feature, coords, rmax)
-            for tens in [nbrs]:  # coords, feature, labels, lengths, 
-                tens.to(device)
-            
-            out = net(nbrs)
-            # if global_step == 1 and tbwriter != None:
-                # tbwriter.add_graph(net, [nbrs.x, nbrs.edge_index, nbrs.edge_attr])
+        for batch in data_loader:
+            for j in range(batch_size):
+                global_step += 1
+                coords = batch['coords'][j]
+                feature = batch['features'][j]
+                labels = batch['drmsd'][j].to(device)
+                # lengths = batch['length'][j]
+                nbrs = DataNeighbors(feature, coords, rmax)
+                # for tens in [nbrs]:  # coords, feature, labels, lengths, 
+                    # tens.to(device)
+                nbrs = nbrs.to(device)
+                out = net(nbrs)
+                # if global_step == 1 and tbwriter != None:
+                    # tbwriter.add_graph(net, [nbrs.x, nbrs.edge_index, nbrs.edge_attr])
 
-            # https://discuss.pytorch.org/t/why-do-we-need-to-set-the-gradients-manually-to-zero-in-pytorch/4903/20
-            loss = (out.mean() - labels) ** 2
-            loss.backward()
-            if global_step % batch_size == 0:
-                optimizer.step()
-                optimizer.zero_grad()
+                # https://discuss.pytorch.org/t/why-do-we-need-to-set-the-gradients-manually-to-zero-in-pytorch/4903/20
+                loss = (out.mean() - labels) ** 2
+                loss.backward()
+                if global_step % batch_size == 0:
+                    optimizer.step()
+                    optimizer.zero_grad()
 
 
-            # update metrics
-            metrics['Loss'].append(loss)
-            metrics['Avg_Neighbors'].append(nbrs.edge_attr.shape[0] / nbrs.x.shape[0])
-            metrics['Out/range'].append(out.max() - out.min())
-            metrics['Out/var'].append(out.var())
-            if global_step % save_every == 0 and save_dir != '' and save_every != 0:
-                torch.save(net.state_dict(), os.path.join(save_dir, sdir))
-                if tbwriter is not None:
-                    pass
-                    # tbwriter.add_hparams({'lr': lr, 'lmax': lmax, 'rmax': rmax, 'layers': layers, 'epochs': epoch, 'steps': i},
-                    #          {'Loss': 0., 'Avg_Neighbors': 0., 'Out/var': 0.},
-                    #         )
-            if global_step % tbinterval == 0:
-                if tbwriter is None:
-                    print(f"epoch:step={epoch}:{global_step} loss={loss:.2f}")
-                for m in metrics:
-                    val = sum(metrics[m]) / max(1, len(metrics[m]))
+                # update metrics
+                metrics['Loss'].append(loss)
+                metrics['Avg_Neighbors'].append(nbrs.edge_attr.shape[0] / nbrs.x.shape[0])
+                metrics['Out/range'].append(out.max() - out.min())
+                metrics['Out/var'].append(out.var())
+                if global_step % save_every == 0 and save_dir != '' and save_every != 0:
+                    torch.save(net.state_dict(), os.path.join(save_dir, sdir))
                     if tbwriter is not None:
-                        tbwriter.add_scalar(m, val, global_step)
-                    else:
-                        print(f'\t{m}: {val:.2f}')
-                metrics = {m: [] for m in metrics}
+                        pass
+                        # tbwriter.add_hparams({'lr': lr, 'lmax': lmax, 'rmax': rmax, 'layers': layers, 'epochs': epoch, 'steps': i},
+                        #          {'Loss': 0., 'Avg_Neighbors': 0., 'Out/var': 0.},
+                        #         )
+                if global_step % tbinterval == 0:
+                    if tbwriter is None:
+                        print(f"epoch:step={epoch}:{global_step} loss={loss:.2f}")
+                    for m in metrics:
+                        val = sum(metrics[m]) / max(1, len(metrics[m]))
+                        if tbwriter is not None:
+                            tbwriter.add_scalar(m, val, global_step)
+                        else:
+                            print(f'\t{m}: {val:.2f}')
+                    metrics = {m: [] for m in metrics}
 
-                # plot backbone colored by predictions
-                for s in visualization_structs:
-                    if s not in data_loader:
-                        coords = dataset[s]
-                        nbrs = DataNeighbors(
-                            coords['features'],
-                            coords['coords'],
-                            rmax
-                        )
-                        nbrs.to(device)
-                        out = net(nbrs).detach().cpu().numpy()
-                        coords = coords['coords'].numpy()
+                    # plot backbone colored by predictions
+                    net.eval()
+                    with torch.no_grad():
+                        for s in visualization_structs:
+                            if s not in data_loader:
+                                coords = dataset[s]
+                                nbrs = DataNeighbors(
+                                    coords['features'],
+                                    coords['coords'],
+                                    rmax
+                                )
+                                nbrs.to(device)
+                                out = net(nbrs).detach().cpu().numpy()
+                                coords = coords['coords'].numpy()
 
-                        fig = plt.figure(figsize=(6, 6))
-                        ax = fig.add_subplot(1, 1, 1, projection='3d')
-                        _cmap = mpl.cm.get_cmap('cool')
-                        sm = mpl.cm.ScalarMappable(norm=mpl.colors.Normalize(vmin=0, vmax=750), cmap=_cmap)
-                        cmap = lambda c: _cmap(min(c, 750) / 750)
-                        # cmap = sm.cmap
-                        colors = [np.array(cmap(o)) for o in out.flatten()]
-                        ax.scatter(coords[:, 0], coords[:, 1], coords[:, 2], c=colors)
-                        for i in range(len(coords) - 1):
-                            seg = coords[i:i+2]
-                            ax.plot(seg[:, 0], seg[:, 1], seg[:, 2], c=(colors[i] + colors[i+1]) / 2)
-                        fig.colorbar(sm)
+                                fig = plt.figure(figsize=(6, 6))
+                                ax = fig.add_subplot(1, 1, 1, projection='3d')
+                                _cmap = mpl.cm.get_cmap('cool')
+                                sm = mpl.cm.ScalarMappable(norm=mpl.colors.Normalize(vmin=0, vmax=750), cmap=_cmap)
+                                cmap = lambda c: _cmap(min(c, 750) / 750)
+                                # cmap = sm.cmap
+                                colors = [np.array(cmap(o)) for o in out.flatten()]
+                                ax.scatter(coords[:, 0], coords[:, 1], coords[:, 2], c=colors)
+                                for i in range(len(coords) - 1):
+                                    seg = coords[i:i+2]
+                                    ax.plot(seg[:, 0], seg[:, 1], seg[:, 2], c=(colors[i] + colors[i+1]) / 2)
+                                fig.colorbar(sm)
 
-                        tbwriter.add_figure(s, fig, global_step=global_step)
+                                tbwriter.add_figure(s, fig, global_step=global_step)
+                    net.train()
 
 
 

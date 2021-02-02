@@ -119,7 +119,7 @@ def get_data_loader(dir: str, representation: str='Euclidean', batch_size: int=1
 
     """
     loader = ProteinLoader(dir=dir, representation=representation, max_length=max_length)
-    return loader, DataLoader(loader, batch_size=batch_size, shuffle=True, collate_fn=_collate)
+    return loader, DataLoader(loader, batch_size=batch_size, shuffle=True, collate_fn=_collate, pin_memory=True)
 
 if __name__ == '__main__':
     d = '/home/wlg/development/HMS/protein_geometry/data/representations/150_1500'
