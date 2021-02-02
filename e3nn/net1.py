@@ -148,7 +148,7 @@ def main(
                             rmax
                         )
                         nbrs.to(device)
-                        out = net(nbrs).cpu().detach().numpy()
+                        out = net(nbrs).detach().cpu().numpy()
                         coords = coords['coords'].numpy()
 
                         fig = plt.figure(figsize=(6, 6))
