@@ -140,35 +140,35 @@ def main(
                     metrics = {m: [] for m in metrics}
 
                     # plot backbone colored by predictions
-                    net.eval()
-                    with torch.no_grad():
-                        for s in visualization_structs:
-                            if s not in data_loader:
-                                coords = dataset[s]
-                                nbrs = DataNeighbors(
-                                    coords['features'],
-                                    coords['coords'],
-                                    rmax
-                                )
-                                nbrs.to(device)
-                                out = net(nbrs).detach().cpu().numpy()
-                                coords = coords['coords'].numpy()
+                    # net.eval()
+                    # with torch.no_grad():
+                    #     for s in visualization_structs:
+                    #         if s not in data_loader:
+                    #             coords = dataset[s]
+                    #             nbrs = DataNeighbors(
+                    #                 coords['features'],
+                    #                 coords['coords'],
+                    #                 rmax
+                    #             )
+                    #             nbrs.to(device)
+                    #             out = net(nbrs).detach().cpu().numpy()
+                    #             coords = coords['coords'].numpy()
 
-                                fig = plt.figure(figsize=(6, 6))
-                                ax = fig.add_subplot(1, 1, 1, projection='3d')
-                                _cmap = mpl.cm.get_cmap('cool')
-                                sm = mpl.cm.ScalarMappable(norm=mpl.colors.Normalize(vmin=0, vmax=750), cmap=_cmap)
-                                cmap = lambda c: _cmap(min(c, 750) / 750)
-                                # cmap = sm.cmap
-                                colors = [np.array(cmap(o)) for o in out.flatten()]
-                                ax.scatter(coords[:, 0], coords[:, 1], coords[:, 2], c=colors)
-                                for i in range(len(coords) - 1):
-                                    seg = coords[i:i+2]
-                                    ax.plot(seg[:, 0], seg[:, 1], seg[:, 2], c=(colors[i] + colors[i+1]) / 2)
-                                fig.colorbar(sm)
+                    #             fig = plt.figure(figsize=(6, 6))
+                    #             ax = fig.add_subplot(1, 1, 1, projection='3d')
+                    #             _cmap = mpl.cm.get_cmap('cool')
+                    #             sm = mpl.cm.ScalarMappable(norm=mpl.colors.Normalize(vmin=0, vmax=750), cmap=_cmap)
+                    #             cmap = lambda c: _cmap(min(c, 750) / 750)
+                    #             # cmap = sm.cmap
+                    #             colors = [np.array(cmap(o)) for o in out.flatten()]
+                    #             ax.scatter(coords[:, 0], coords[:, 1], coords[:, 2], c=colors)
+                    #             for i in range(len(coords) - 1):
+                    #                 seg = coords[i:i+2]
+                    #                 ax.plot(seg[:, 0], seg[:, 1], seg[:, 2], c=(colors[i] + colors[i+1]) / 2)
+                    #             fig.colorbar(sm)
 
-                                tbwriter.add_figure(s, fig, global_step=global_step)
-                    net.train()
+                    #             tbwriter.add_figure(s, fig, global_step=global_step)
+                    # net.train()
 
 
 
