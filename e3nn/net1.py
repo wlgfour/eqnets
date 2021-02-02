@@ -84,7 +84,6 @@ def main(
     optimizer = torch.optim.Adam(net.parameters(), lr=lr)
 
     epoch = 0
-    loss = 0
     global_step = 0
     metrics = {
         'Loss': [],
@@ -99,23 +98,21 @@ def main(
             coords = sample['coords'][0]
             feature = sample['features'][0]
             labels = sample['drmsd'][0]
-            lengths = sample['length'][0]
+            # lengths = sample['length'][0]
             nbrs = DataNeighbors(feature, coords, rmax)
-            for tens in [coords, feature, labels, lengths, nbrs]:
+            for tens in [nbrs]:  # coords, feature, labels, lengths, 
                 tens.to(device)
             
             out = net(nbrs)
-            if global_step == 1 and tbwriter != None:
+            # if global_step == 1 and tbwriter != None:
                 # tbwriter.add_graph(net, [nbrs.x, nbrs.edge_index, nbrs.edge_attr])
-                pass
 
             # https://discuss.pytorch.org/t/why-do-we-need-to-set-the-gradients-manually-to-zero-in-pytorch/4903/20
-            loss += (out.mean() - labels) ** 2
+            loss = (out.mean() - labels) ** 2
             loss.backward()
             if global_step % batch_size == 0:
                 optimizer.step()
                 optimizer.zero_grad()
-                loss = 0
 
 
             # update metrics
@@ -208,12 +205,14 @@ if __name__ == '__main__':
                         help='Not Implemented')
     parser.add_argument('--bs', type=int, default=1,
                         help='Batch size.')
+    parser.add_argument('--lr', type=float, default=1e-2,
+                        help='Batch size.')
     opts = parser.parse_args()
 
     data_path = opts.data  # '~/protein_geometry/data/representations/rgn'
     save_dir = opts.save_dir
     if opts.name == '':
-        name = f'lmax:{opts.lmax}-rmax:{opts.rmax}-layers:{opts.layers}-bs:{opts.bs}'
+        name = f'lmax:{opts.lmax}-rmax:{opts.rmax}-layers:{opts.layers}-bs:{opts.bs}-lr:{opts.lr}'
     else:
         name = opts.name
 
@@ -231,6 +230,7 @@ if __name__ == '__main__':
         tbinterval=opts.tb_interval,
         visualization_structs=opts.visualization_structs,
         batch_size=opts.bs,
+        lr=opts.lr,
     )
 
     setproctitle(name)
