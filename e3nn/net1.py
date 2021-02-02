@@ -118,7 +118,7 @@ def main(
 
                 # update metrics
                 metrics['Loss'].append(loss.detach().cpu())
-                metrics['Avg_Neighbors'].append((nbrs.edge_attr.shape[0] / nbrs.x.shape[0]).cpu())
+                metrics['Avg_Neighbors'].append(nbrs.edge_attr.shape[0] / nbrs.x.shape[0])
                 metrics['Out/range'].append((out.max() - out.min()).cpu())
                 metrics['Out/var'].append(out.var().cpu())
                 if global_step % save_every == 0 and save_dir != '' and save_every != 0:
