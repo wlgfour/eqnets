@@ -98,7 +98,6 @@ def main(
                 global_step += 1
                 coords = batch['coords'][j]
                 feature = batch['features'][j]
-                labels = batch['drmsd'][j].to(device)
                 # lengths = batch['length'][j]
                 nbrs = DataNeighbors(feature, coords, rmax)
                 # for tens in [nbrs]:  # coords, feature, labels, lengths, 
@@ -109,6 +108,7 @@ def main(
                     # tbwriter.add_graph(net, [nbrs.x, nbrs.edge_index, nbrs.edge_attr])
 
                 # https://discuss.pytorch.org/t/why-do-we-need-to-set-the-gradients-manually-to-zero-in-pytorch/4903/20
+                labels = batch['drmsd'][j].to(device)
                 loss = (out.mean() - labels) ** 2
                 loss.backward()
                 if global_step % batch_size == 0:
@@ -117,10 +117,10 @@ def main(
 
 
                 # update metrics
-                metrics['Loss'].append(loss)
-                metrics['Avg_Neighbors'].append(nbrs.edge_attr.shape[0] / nbrs.x.shape[0])
-                metrics['Out/range'].append(out.max() - out.min())
-                metrics['Out/var'].append(out.var())
+                metrics['Loss'].append(loss.detach().cpu())
+                metrics['Avg_Neighbors'].append((nbrs.edge_attr.shape[0] / nbrs.x.shape[0]).cpu())
+                metrics['Out/range'].append((out.max() - out.min()).cpu())
+                metrics['Out/var'].append(out.var().cpu())
                 if global_step % save_every == 0 and save_dir != '' and save_every != 0:
                     torch.save(net.state_dict(), os.path.join(save_dir, sdir))
                     if tbwriter is not None:
