@@ -75,7 +75,7 @@ def main(
     dataset, data_loader = get_data_loader(data_path, batch_size=batch_size, max_length=-1)
 
     Rs_in = [(N_FEATURES, 0)]
-    Rs_hidden = [(16, 0), (16, 1), (16, 2)]
+    Rs_hidden = [(16, 0), (8, 1), (4, 2)]
     Rs_out = [(1, 0)]
 
     net = GatedConvNeighbors(Rs_in, Rs_hidden, Rs_out, lmax=lmax, max_radius=rmax, layers=layers)
